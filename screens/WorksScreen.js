@@ -1,6 +1,6 @@
-import {Button, Card, List, MD3Colors, MD3LightTheme, ProgressBar, Text} from "react-native-paper";
+import {Button, Card, List, ProgressBar, Text} from "react-native-paper";
 import {Animated, Platform, SafeAreaView, ScrollView, StyleSheet, View} from "react-native";
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 
 const WorksScreen = ({ navigation }) => {
     const isIOS = Platform.OS === 'ios';

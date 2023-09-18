@@ -1,9 +1,8 @@
 import * as React from 'react';
-import {BottomNavigation, PaperProvider, Text} from 'react-native-paper';
-import WorksScreen from "./screens/WorksScreen";
+import {PaperProvider} from 'react-native-paper';
 import {StatusBar} from "react-native";
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import MainScreen from "./screens/MainScreen";
 import WorkProcessScreen from "./screens/WorkProcess";
 

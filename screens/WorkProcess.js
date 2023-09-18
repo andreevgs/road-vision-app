@@ -4,20 +4,41 @@ import {useEffect, useRef, useState} from "react";
 import * as ScreenOrientation from 'expo-screen-orientation';
 import {AutoFocus, Camera, CameraType, VideoQuality} from "expo-camera";
 import {SafeAreaView, StyleSheet, TouchableOpacity, View} from "react-native";
+import * as Location from 'expo-location';
+import {Accuracy} from "expo-location";
 
 const WorkProcessScreen = ({ navigation }) => {
     const [currentOrientation, setCurrentOrientation] = useState(null);
     const [type, setType] = useState(CameraType.back);
-    const [permission, requestPermission] = Camera.useCameraPermissions();
+    const [cameraPermission, requestCameraPermission] = Camera.useCameraPermissions();
+    const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
+    const [currentPosition, setCurrentPosition] = useState(null);
+    const [currentSpeed, setCurrentSpeed] = useState(null);
     const [isRecordingMode, setIsRecordingMode] = useState(false);
     const [recordedVideoUri, setRecordedVideoUri] = useState('');
     const cameraRef = useRef(null);
+
     useEffect(() => {
         ScreenOrientation.getOrientationAsync().then(orientation => {
             setCurrentOrientation(orientation);
-        })
+        });
+        // Location.getCurrentPositionAsync({accuracy: Accuracy.Low, distanceInterval: 10}).then(location => console.log(location));
+        Location.watchPositionAsync({accuracy: Accuracy.BestForNavigation}, location => {
+            console.log(location)
+            Location.reverseGeocodeAsync(location.coords).then(address => console.log(address));
+        });
     }, []);
 
+    function requestPermissions() {
+        if(cameraPermission.granted && !locationPermission.granted){
+            requestLocationPermission();
+        } else if(!cameraPermission.granted && locationPermission.granted) {
+            requestCameraPermission();
+        } else {
+            requestCameraPermission()
+                .then(() => requestLocationPermission());
+        }
+    }
     function toggleRecording() {
         isRecordingMode ?
             cameraRef.current.stopRecording() :
@@ -25,17 +46,17 @@ const WorkProcessScreen = ({ navigation }) => {
         setIsRecordingMode(current => (!current));
     }
 
-    if (!permission) {
-        // Camera permissions are still loading
+    if (!cameraPermission || !locationPermission) {
+        // permissions are still loading
         return <View/>;
     }
 
-    if (!permission.granted) {
-        // Camera permissions are not granted yet
+    if (!cameraPermission.granted || !locationPermission.granted) {
+        // permissions are not granted yet
         return (
             <View style={styles.permissionsContainer}>
-                <Text style={{textAlign: 'center', marginBottom: 20}} variant={'bodyLarge'}>Требуется разрешение для доступа к камере</Text>
-                <Button onPress={requestPermission} mode={'contained'} style={{width: 200, marginBottom: 16}}>Разрешить</Button>
+                <Text style={{textAlign: 'center', marginBottom: 20}} variant={'bodyLarge'}>Требуется разрешение для доступа к камере и сервисам геолокации</Text>
+                <Button onPress={requestPermissions} mode={'contained'} style={{width: 200, marginBottom: 16}}>Разрешить</Button>
                 <Button onPress={() => navigation.navigate('Main')} mode={'contained-tonal'} style={{width: 200}}>Назад</Button>
             </View>
         );
