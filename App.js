@@ -1,82 +1,27 @@
-import {StyleSheet, Text, View, TouchableOpacity, Button} from 'react-native';
-import {AutoFocus, Camera, CameraType, VideoQuality} from "expo-camera";
-import {useRef, useState} from "react";
+import * as React from 'react';
+import {BottomNavigation, PaperProvider, Text} from 'react-native-paper';
+import WorksScreen from "./screens/WorksScreen";
+import {StatusBar} from "react-native";
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import MainScreen from "./screens/MainScreen";
+import WorkProcessScreen from "./screens/WorkProcess";
 
-export default function App() {
-    const [type, setType] = useState(CameraType.back);
-    const [permission, requestPermission] = Camera.useCameraPermissions();
-    const [isRecordingMode, setIsRecordingMode] = useState(false);
-    const [recordedVideoUri, setRecordedVideoUri] = useState('');
-    const cameraRef = useRef(null);
+const Stack = createNativeStackNavigator();
 
-    function toggleRecording() {
-        isRecordingMode ?
-            cameraRef.current.stopRecording() :
-            cameraRef.current.recordAsync({quality: VideoQuality["720p"]}).then(video => {setRecordedVideoUri(video.uri); console.log(recordedVideoUri)});
-        setIsRecordingMode(current => (!current));
-    }
-
-    if (!permission) {
-        // Camera permissions are still loading
-        return <View/>;
-    }
-
-    if (!permission.granted) {
-        // Camera permissions are not granted yet
-        return (
-            <View style={styles.container}>
-                <Text style={{textAlign: 'center'}}>We need your permission to show the camera</Text>
-                <Button onPress={requestPermission} title="grant permission"/>
-            </View>
-        );
-    }
+const App = () => {
 
     return (
-        <View style={styles.container}>
-            <Camera
-                ref={cameraRef}
-                style={styles.camera}
-                type={type}
-                autoFocus={AutoFocus.on}
-                quality
-            >
-                {recordedVideoUri && <View>
-                    <Text>{recordedVideoUri}</Text>
-                </View>}
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity style={styles.button} onPress={toggleRecording}>
-                        {isRecordingMode ?
-                            <Text style={styles.text}>Stop Recording</Text> :
-                            <Text style={styles.text}>Start Recording</Text>}
-                    </TouchableOpacity>
-                </View>
-            </Camera>
-        </View>
+        <PaperProvider>
+            <StatusBar barStyle="dark-content" />
+            <NavigationContainer>
+                <Stack.Navigator initialRouteName="Main">
+                    <Stack.Screen name="Main" component={MainScreen}/>
+                    <Stack.Screen name="WorkProcess" component={WorkProcessScreen} options={{headerShown: false}}/>
+                </Stack.Navigator>
+            </NavigationContainer>
+        </PaperProvider>
     );
-}
+};
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    camera: {
-        flex: 1,
-    },
-    buttonContainer: {
-        flex: 1,
-        flexDirection: 'row',
-        backgroundColor: 'transparent',
-        margin: 64,
-    },
-    button: {
-        flex: 1,
-        alignSelf: 'flex-end',
-        alignItems: 'center',
-    },
-    text: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-});
+export default App;
