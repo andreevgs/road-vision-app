@@ -1,13 +1,23 @@
 import {Button, Card, List, ProgressBar, Text} from "react-native-paper";
 import {Animated, Platform, SafeAreaView, ScrollView, StyleSheet, View} from "react-native";
-import {useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
+import * as FileSystem from "expo-file-system";
 
 const WorksScreen = ({ navigation }) => {
     const isIOS = Platform.OS === 'ios';
     const [isFABExtended, setIsFABExtended] = useState(true);
+    const [savedFiles, setSavedFiles] = useState([]);
     const { current: velocity } = useRef(
         new Animated.Value(0)
     );
+    useEffect(() => {
+        FileSystem.readDirectoryAsync(`${FileSystem.cacheDirectory}/Camera`).then(files => {
+            console.log(files);
+            files.forEach(async file => {
+                console.log(await FileSystem.getInfoAsync(`${FileSystem.cacheDirectory}/Camera/${file}`));
+            });
+        });
+    }, []);
     const onScroll = ({nativeEvent}) => {
         const currentScrollPosition =
             Math.floor(nativeEvent?.contentOffset?.y) ?? 0;
@@ -29,7 +39,7 @@ const WorksScreen = ({ navigation }) => {
                             </Text>
                             <ProgressBar style={styles.progressBar} progress={0.2}></ProgressBar>
                         </View>
-                        <Button mode={'contained'}>Выгрузить (1 GB)</Button>
+                        <Button mode={'contained'}>Выгрузить</Button>
                     </Card.Content>
                 </Card>
             </View>

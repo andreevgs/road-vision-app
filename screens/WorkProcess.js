@@ -12,21 +12,27 @@ const WorkProcessScreen = ({ navigation }) => {
     const [type, setType] = useState(CameraType.back);
     const [cameraPermission, requestCameraPermission] = Camera.useCameraPermissions();
     const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
-    const [currentPosition, setCurrentPosition] = useState(null);
-    const [currentSpeed, setCurrentSpeed] = useState(null);
+    const [currentPosition, setCurrentPosition] = useState('');
+    const [currentSpeed, setCurrentSpeed] = useState(0);
     const [isRecordingMode, setIsRecordingMode] = useState(false);
     const [recordedVideoUri, setRecordedVideoUri] = useState('');
     const cameraRef = useRef(null);
 
     useEffect(() => {
         ScreenOrientation.getOrientationAsync().then(orientation => {
+            console.log(orientation);
             setCurrentOrientation(orientation);
         });
         // Location.getCurrentPositionAsync({accuracy: Accuracy.Low, distanceInterval: 10}).then(location => console.log(location));
         Location.watchPositionAsync({accuracy: Accuracy.BestForNavigation}, location => {
             console.log(location)
-            Location.reverseGeocodeAsync(location.coords).then(address => console.log(address));
+            setCurrentSpeed(location.coords.speed);
+            Location.reverseGeocodeAsync(location.coords).then(address => {
+                console.log(address[0].name);
+                setCurrentPosition(address[0].name);
+            });
         });
+
     }, []);
 
     function requestPermissions() {
@@ -42,7 +48,8 @@ const WorkProcessScreen = ({ navigation }) => {
     function toggleRecording() {
         isRecordingMode ?
             cameraRef.current.stopRecording() :
-            cameraRef.current.recordAsync({quality: VideoQuality["720p"]}).then(video => {setRecordedVideoUri(video.uri); console.log(video.uri)});
+            cameraRef.current.recordAsync({quality: VideoQuality["720p"], mute: true})
+                .then(video => {setRecordedVideoUri(video.uri); console.log(video.uri)});
         setIsRecordingMode(current => (!current));
     }
 
@@ -88,10 +95,10 @@ const WorkProcessScreen = ({ navigation }) => {
                     {currentOrientation === 4 &&
                         <SafeAreaView style={styles.workplace}>
                             <View style={styles.infoSection}>
-                                <Text style={{color: '#fff'}}>GPS OK</Text>
-                                <Text style={{color: '#fff'}}>улица Программистов</Text>
+                                <Text style={{color: '#fff'}}>{currentPosition ? 'GPS OK' : 'GPS Connecting'}</Text>
+                                <Text style={{color: '#fff'}}>{currentPosition ? currentPosition : 'N/A'}</Text>
                                 {!isRecordingMode && <Text style={{color: '#fff'}}>29 FPS</Text>}
-                                {!isRecordingMode && <Text style={{color: '#fff'}}>0 KM/H</Text>}
+                                {!isRecordingMode && <Text style={{color: '#fff'}}>{currentSpeed > -1 ? currentSpeed : 0} KM/H</Text>}
                                     {!isRecordingMode &&
                                         <Button
                                             mode={'contained'}
