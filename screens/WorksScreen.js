@@ -1,76 +1,98 @@
 import {Button, Card, List, ProgressBar, Text} from "react-native-paper";
-import {Animated, Platform, SafeAreaView, ScrollView, StyleSheet, View} from "react-native";
-import {useEffect, useRef, useState} from "react";
-import * as FileSystem from "expo-file-system";
+import {SafeAreaView, ScrollView, StyleSheet, View} from "react-native";
+import {useEffect, useState} from "react";
+import Database from "../data/database";
+import {format, formatDistance} from "date-fns";
+import ruLocale from "date-fns/locale/ru";
+import {getUsedMemoryCapacity} from "../data/filesystem";
+import axios from "axios";
 
-const WorksScreen = ({ navigation }) => {
-    const isIOS = Platform.OS === 'ios';
-    const [isFABExtended, setIsFABExtended] = useState(true);
-    const [savedFiles, setSavedFiles] = useState([]);
-    const { current: velocity } = useRef(
-        new Animated.Value(0)
-    );
+const WorksScreen = ({navigation}) => {
+    const [trips, setTrips] = useState(null);
+    const [capacityInfo, setCapacityInfo] = useState(null);
+
     useEffect(() => {
-        FileSystem.readDirectoryAsync(`${FileSystem.cacheDirectory}/Camera`).then(files => {
-            console.log(files);
-            files.forEach(async file => {
-                console.log(await FileSystem.getInfoAsync(`${FileSystem.cacheDirectory}/Camera/${file}`));
-            });
-        });
+        getUsedMemoryCapacity().then(info => {console.log(info); setCapacityInfo(info)});
+        fetchTrips();
     }, []);
-    const onScroll = ({nativeEvent}) => {
-        const currentScrollPosition =
-            Math.floor(nativeEvent?.contentOffset?.y) ?? 0;
-        if (!isIOS) {
-            return velocity.setValue(currentScrollPosition);
-        }
-        setIsFABExtended(currentScrollPosition <= 0);
-    };
+
+    async function uploadData() {
+        const response = await axios.post('http://192.168.100.41:5000/roads/geodata/upload', {
+            geodata: trips
+        });
+    }
+    async function fetchTrips(){
+        Database.openDatabase();
+        await Database.checkStoragePreparation();
+        const tripsData = await Database.fetchTrips();
+        setTrips(tripsData.reverse());
+        Database.closeDatabase();
+    }
+
+    function extractDate(milliseconds){
+        const daysDifference = new Date(new Date() - new Date(milliseconds)) / 86400000;
+        if(daysDifference < 1)
+            return 'Сегодня';
+        if(daysDifference < 2)
+            return 'Вчера';
+        return format(new Date(milliseconds), 'P', {locale: ruLocale});
+    }
+
+    function extractTime(milliseconds){
+        return format(new Date(milliseconds), 'p', {locale: ruLocale});
+    }
+
+    function extractDuration(startMilliseconds, endMilliseconds){
+        return formatDistance(
+            new Date(startMilliseconds),
+            new Date(endMilliseconds),
+            {locale: ruLocale}
+        )
+    }
 
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView>
-            <View style={styles.cardContainer}>
-                <Card mode={'elevated'} elevation={1}>
-                    <Card.Content style={styles.info}>
-                        <View>
-                            <Text style={styles.infoBlockProgress} variant={'titleMedium'}>
-                                Используется 1 GB памяти устройства
-                            </Text>
-                            <ProgressBar style={styles.progressBar} progress={0.2}></ProgressBar>
-                        </View>
-                        <Button mode={'contained'}>Выгрузить</Button>
-                    </Card.Content>
-                </Card>
-            </View>
-            <List.Section>
-                <List.Subheader>Законченные работы</List.Subheader>
-                <List.Item
-                    title={'12.04.2023 c 12:30 по 14:40'}
-                    description={'123 км, 2 часа 12 минут'}
-                    descriptionEllipsizeMode={'middle'}
-                    right={() => <List.Icon icon={'cloud-off-outline'}></List.Icon>}
-                    onPress={() => console.log('pressed')}
-                ></List.Item>
-                <List.Item
-                    title={'12.04.2023 c 12:30 по 14:40'}
-                    description={'123 км, 2 часа 12 минут'}
-                    descriptionEllipsizeMode={'middle'}
-                    right={() => <List.Icon icon={'cloud-off-outline'}></List.Icon>}
-                ></List.Item>
-                <List.Item
-                    title={'12.04.2023 c 12:30 по 14:40'}
-                    description={'123 км, 2 часа 12 минут'}
-                    descriptionEllipsizeMode={'middle'}
-                    right={() => <List.Icon icon={'cloud-sync'}></List.Icon>}
-                ></List.Item>
-                <List.Item
-                    title={'12.04.2023 c 12:30 по 14:40'}
-                    description={'123 км, 2 часа 12 минут'}
-                    descriptionEllipsizeMode={'middle'}
-                    right={() => <List.Icon icon={'cloud-check'}></List.Icon>}
-                ></List.Item>
-            </List.Section>
+                <View style={styles.cardContainer}>
+                    <Card mode={'elevated'} elevation={1}>
+                        <Card.Content style={styles.info}>
+                            <View>
+                                {capacityInfo ?
+                                    <Text style={styles.infoBlockProgress} variant={'titleMedium'}>
+                                        Используется {capacityInfo.size} {capacityInfo.measure} памяти устройства
+                                    </Text> :
+                                    <Text
+                                        style={[styles.infoBlockProgress, styles.infoBlockProgressCalculating]}
+                                        variant={'titleMedium'}
+                                    >
+                                        Вычисление
+                                    </Text>
+                                }
+                                <ProgressBar
+                                    style={styles.progressBar}
+                                    progress={capacityInfo ? capacityInfo.index : 0}></ProgressBar>
+                            </View>
+                            <Button
+                                mode={'contained'}
+                                disabled={!trips?.length}
+                                onPress={uploadData}
+                            >Выгрузить</Button>
+                        </Card.Content>
+                    </Card>
+                </View>
+                <List.Section>
+                    <List.Subheader>Законченные работы</List.Subheader>
+                    {trips && trips.map((trip, i) => (
+                        <List.Item
+                            key={i}
+                            title={`${extractDate(trip.start_timestamp)} с ${extractTime(trip.start_timestamp)} по ${extractTime(trip.end_timestamp)}`}
+                            description={`${extractDuration(trip.start_timestamp, trip.end_timestamp)}`}
+                            descriptionEllipsizeMode={'middle'}
+                            right={() => <List.Icon icon={'cloud-off-outline'}></List.Icon>}
+                            onPress={() => console.log('pressed')}
+                        ></List.Item>
+                    ))}
+                </List.Section>
             </ScrollView>
             <View>
                 <Button
@@ -98,6 +120,9 @@ const styles = StyleSheet.create({
     },
     infoBlockProgress: {
         marginBottom: 6,
+    },
+    infoBlockProgressCalculating: {
+        opacity: 0.5,
     },
     progressBar: {
         height: 16,
